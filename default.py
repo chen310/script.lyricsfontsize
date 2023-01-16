@@ -70,7 +70,7 @@ def change_font_size():
     filepath = os.path.join(addonspath, 'script.cu.lrclyrics', 'resources',
                             'skins', 'Default', '1080i', 'script-cu-lrclyrics-main.xml')
     if not os.path.exists(filepath):
-        xbmcgui.Dialog().notification('LyricFontSize', '未找到指定文件',
+        xbmcgui.Dialog().notification('LyricsFontSize', '未找到指定文件',
                                       xbmcgui.NOTIFICATION_INFO, 2000, False)
         return
 
@@ -78,30 +78,30 @@ def change_font_size():
     root = doc.documentElement
 
     nodes = root.getElementsByTagName('control')
-    lyric_node = None
+    lyrics_node = None
     title_node = None
     for i in range(len(nodes)):
         if nodes[i].getAttribute('id') == '110':
-            lyric_node = nodes[i]
+            lyrics_node = nodes[i]
             title_node = nodes[i-1]
             break
 
-    if not lyric_node:
-        xbmcgui.Dialog().notification('LyricFontSize', '修改失败，未找到对应结点',
+    if not lyrics_node:
+        xbmcgui.Dialog().notification('LyricsFontSize', '修改失败，未找到对应结点',
                                       xbmcgui.NOTIFICATION_INFO, 2000, False)
         return
 
     current_title_font_size = title_node.getElementsByTagName("font")[0].firstChild.data.strip()
-    current_lyric_font_size = lyric_node.getElementsByTagName("font")[0].firstChild.data.strip()
+    current_lyrics_font_size = lyrics_node.getElementsByTagName("font")[0].firstChild.data.strip()
 
     title_font_size_list = ['font20_title', 'font25_title', 'font30_title',
                             'font32_title', 'font36_title', 'font40_title', 'font45_title', 'font52_title']
     kodi_version = get_kodi_version()
     if kodi_version and kodi_version == 19:
-        lyric_font_size_list = ['font10', 'font12', 'font13',
+        lyrics_font_size_list = ['font10', 'font12', 'font13',
                                 'font14', 'font27', 'font37', 'font45', 'font60']
     else:
-        lyric_font_size_list = ['font10', 'font12', 'font13',
+        lyrics_font_size_list = ['font10', 'font12', 'font13',
                                 'font14', 'font27', 'font32', 'font37', 'font45', 'font60']
 
     sel0 = xbmcgui.Dialog().select('请选择要改变字体大小的项目', ['标题字体大小', '歌词字体大小'])
@@ -111,8 +111,8 @@ def change_font_size():
         font_size_list = title_font_size_list
         show_list = [e+' (当前字体大小)' if e == current_title_font_size else e for e in title_font_size_list]
     else:
-        font_size_list = lyric_font_size_list
-        show_list = [e+' (当前字体大小)' if e == current_lyric_font_size else e for e in lyric_font_size_list]
+        font_size_list = lyrics_font_size_list
+        show_list = [e+' (当前字体大小)' if e == current_lyrics_font_size else e for e in lyrics_font_size_list]
 
     sel = xbmcgui.Dialog().select('请选择字体大小', show_list)
 
@@ -126,7 +126,7 @@ def change_font_size():
         newText = doc.createTextNode(font_size)
         node.replaceChild(newText, node.firstChild)
     elif sel0 == 1:
-        for node in lyric_node.getElementsByTagName("font"):
+        for node in lyrics_node.getElementsByTagName("font"):
             newText = doc.createTextNode(font_size)
             node.replaceChild(newText, node.firstChild)
     with open(filepath, 'w', encoding='utf-8') as f:
@@ -137,7 +137,7 @@ def change_font_size():
     else:
         info = '歌词字体大小已替换成: ' + font_size
 
-    xbmcgui.Dialog().notification('LyricFontSize', info,
+    xbmcgui.Dialog().notification('LyricsFontSize', info,
                                   xbmcgui.NOTIFICATION_INFO, 2000, False)
 
 
