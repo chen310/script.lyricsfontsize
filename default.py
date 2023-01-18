@@ -11,6 +11,7 @@ from xml.dom import minidom
 # Script constants
 __addon__ = xbmcaddon.Addon()
 __cwd__ = xbmcvfs.translatePath(__addon__.getAddonInfo('path'))
+addonspath = os.path.dirname(os.path.dirname(__cwd__))
 
 # Shared resources
 BASE_RESOURCE_PATH = os.path.join(__cwd__, 'resources', 'lib')
@@ -65,10 +66,76 @@ def get_kodi_version():
         return json_query['result']['version']['major']
 
 
+def getres(addon_path):
+    filepath = os.path.join(addon_path, 'addon.xml')
+    doc = minidom.parse(filepath)
+    root = doc.documentElement
+    items = root.getElementsByTagName('extension')
+    for item in items:
+        point = item.getAttribute('point')
+        if point == 'xbmc.gui.skin':
+            ress = item.getElementsByTagName('res')
+            list = []
+            for res in ress:
+                if res.getAttribute('folder') not in list:
+                    list.append(res.getAttribute('folder'))
+            return list
+    return []
+
+
+def get_fonts(filepath):
+    doc = minidom.parse(filepath)
+    root = doc.documentElement
+    fontsets = root.getElementsByTagName('fontset')
+    if fontsets:
+        font_node = fontsets[0]
+    else:
+        return
+
+    title_font_size_list = []
+    lyrics_font_size_list = []
+
+    for node in font_node.getElementsByTagName("name"):
+        font = node.firstChild.data.strip()
+        if font.startswith("font"):
+            if font.endswith("_title"):
+                title_font_size_list.append(font)
+            elif font[4:].isdigit():
+                lyrics_font_size_list.append(font)
+    return title_font_size_list, lyrics_font_size_list
+
+
 def change_font_size():
-    addonspath = os.path.dirname(os.path.dirname(__cwd__))
-    filepath = os.path.join(addonspath, 'script.cu.lrclyrics', 'resources',
-                            'skins', 'Default', '1080i', 'script-cu-lrclyrics-main.xml')
+    skin_path = xbmcvfs.translatePath('special://skin')
+    res_path = getres(skin_path)
+    if res_path:
+        res_path = res_path[0]
+        font_xml_path = os.path.join(skin_path, res_path, 'Font.xml')
+    else:
+        font_xml_path = ''
+    if os.path.exists(font_xml_path):
+        title_font_size_list, lyrics_font_size_list = get_fonts(font_xml_path)
+    else:
+        title_font_size_list = ['font20_title', 'font25_title', 'font30_title',
+                                'font32_title', 'font36_title', 'font40_title', 'font45_title', 'font52_title']
+        kodi_version = get_kodi_version()
+        if kodi_version and kodi_version == 19:
+            lyrics_font_size_list = ['font10', 'font12', 'font13',
+                                     'font14', 'font27', 'font37', 'font45', 'font60']
+        else:
+            lyrics_font_size_list = ['font10', 'font12', 'font13',
+                                     'font14', 'font27', 'font32', 'font37', 'font45', 'font60']
+
+    lyrics_xml_path = os.path.join(
+        skin_path, res_path, 'script-cu-lrclyrics-main.xml')
+    if os.path.exists(lyrics_xml_path):
+        filepath = lyrics_xml_path
+        has_custom_lyrics_file = True
+    else:
+        filepath = os.path.join(addonspath, 'script.cu.lrclyrics', 'resources',
+                                'skins', 'Default', '1080i', 'script-cu-lrclyrics-main.xml')
+        has_custom_lyrics_file = False
+
     if not os.path.exists(filepath):
         xbmcgui.Dialog().notification('LyricsFontSize', '未找到指定文件',
                                       xbmcgui.NOTIFICATION_INFO, 2000, False)
@@ -76,7 +143,6 @@ def change_font_size():
 
     doc = minidom.parse(filepath)
     root = doc.documentElement
-
     nodes = root.getElementsByTagName('control')
     lyrics_node = None
     title_node = None
@@ -91,23 +157,27 @@ def change_font_size():
                                       xbmcgui.NOTIFICATION_INFO, 2000, False)
         return
 
-    current_title_font_size = title_node.getElementsByTagName("font")[0].firstChild.data.strip()
+    labels = title_node.getElementsByTagName("label")
+    if labels and "MusicPlayer.Title" in labels[0].firstChild.data:
+        has_title = True
+    else:
+        has_title = False
+
+    if has_title:
+        current_title_font_size = title_node.getElementsByTagName("font")[0].firstChild.data.strip()
     current_lyrics_font_size = lyrics_node.getElementsByTagName("font")[0].firstChild.data.strip()
 
-    title_font_size_list = ['font20_title', 'font25_title', 'font30_title',
-                            'font32_title', 'font36_title', 'font40_title', 'font45_title', 'font52_title']
-    kodi_version = get_kodi_version()
-    if kodi_version and kodi_version == 19:
-        lyrics_font_size_list = ['font10', 'font12', 'font13',
-                                'font14', 'font27', 'font37', 'font45', 'font60']
+    if has_title:
+        menus = ['标题字体大小', '歌词字体大小']
     else:
-        lyrics_font_size_list = ['font10', 'font12', 'font13',
-                                'font14', 'font27', 'font32', 'font37', 'font45', 'font60']
-
-    sel0 = xbmcgui.Dialog().select('请选择要改变字体大小的项目', ['标题字体大小', '歌词字体大小'])
+        menus = ['歌词字体大小']
+    if has_custom_lyrics_file:
+        sel0 = xbmcgui.Dialog().select('请选择要改变字体大小的项目('  + os.path.basename(os.path.dirname(skin_path)) + ')', menus)
+    else:
+        sel0 = xbmcgui.Dialog().select('请选择要改变字体大小的项目', menus)
     if sel0 < 0:
         return
-    elif sel0 == 0:
+    elif sel0 == 0 and has_title:
         font_size_list = title_font_size_list
         show_list = [e+' (当前字体大小)' if e == current_title_font_size else e for e in title_font_size_list]
     else:
@@ -121,11 +191,11 @@ def change_font_size():
     else:
         font_size = font_size_list[sel]
 
-    if sel0 == 0:
+    if sel0 == 0 and has_title:
         node = title_node.getElementsByTagName('font')[0]
         newText = doc.createTextNode(font_size)
         node.replaceChild(newText, node.firstChild)
-    elif sel0 == 1:
+    else:
         for node in lyrics_node.getElementsByTagName("font"):
             newText = doc.createTextNode(font_size)
             node.replaceChild(newText, node.firstChild)
